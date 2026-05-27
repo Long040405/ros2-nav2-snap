@@ -71,4 +71,4 @@ By default, the snap services are managed using snap parameters:
 - `localization-config`: Path or URL to AMCL parameters.
 - `navigation-config`: Path or URL to Nav2 routing parameters.
 
-For full configuration templates and instructions, refer to the [ctrlX CORE Tutorial Guide](ctrlx_ros2_nav2_tutorial.md).
+For full configuration templates, refer to the [snap/local/configuration_templates/](snap/local/configuration_templates/) folder.
