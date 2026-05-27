@@ -6,3 +6,5 @@ __pycache__/
 *.gv
 *.pdf
 .DS_Store
+ctrlx_ros2_nav2_tutorial.md
+*.assert
