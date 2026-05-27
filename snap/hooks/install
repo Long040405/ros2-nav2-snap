@@ -1,8 +1,13 @@
 #!/bin/sh -e
 
-# Make sure the folders exist
 mkdir -p ${SNAP_COMMON}/config
 mkdir -p ${SNAP_COMMON}/maps
+
+# Copy default map and create symlink during installation
+cp ${SNAP}/usr/share/ros2-nav2/maps/default_map.yaml ${SNAP_COMMON}/maps/default_map.yaml
+cp ${SNAP}/usr/share/ros2-nav2/maps/default_map.png ${SNAP_COMMON}/maps/default_map.png
+ln -sf ${SNAP_COMMON}/maps/default_map.yaml ${SNAP_COMMON}/maps/current_map.yaml
+
 
 . ${SNAP}/usr/bin/reset_config.sh
 

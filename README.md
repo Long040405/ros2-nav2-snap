@@ -1,122 +1,74 @@
-# ros2-nav2-snap
+# ROS 2 & Nav2 Snap for ctrlX OS (AMR Navigation)
 
-The ros2-nav2 snap provides mapping, localization and navigation capabilities for a robot.
+This repository provides an integrated packaging of **ROS 2 Humble** and **Nav2 Stack** as an Ubuntu Snap for deployment on **ctrlX CORE (ctrlX OS)** devices. It enables mapping (SLAM), localization (AMCL), autonomous navigation (Nav2), and incorporates a **Web UI Dashboard** to control and monitor the robot remotely.
 
-## Build
+---
 
-This package is distributed as a snap and as such is meant to be built using snapcraft:
+## Features
 
-`SNAPCRAFT_ENABLE_EXPERIMENTAL_EXTENSIONS=1 snapcraft`
+- **Snap Packaging**: Completely sandboxed, cross-compiled, and ready to deploy on ctrlX CORE.
+- **DDS Networking**: Pre-configured CycloneDDS setup for seamless communication between simulated environments and the physical controller.
+- **Web UI Dashboard**: A web-based interface for managing SLAM, loading maps, setting initial poses, and assigning navigation goals.
+- **Simulation Friendly**: Fully compatible with Gazebo and RViz2 simulations running on an external Ubuntu host.
 
-## Install
+---
 
-Using the locally built snap, first install it with:
+## Quick Start Guide
 
-`snap install --dangerous ros2-nav2-*.snap`
+### 1. Clone the Repository
+Clone this repository to your local development machine:
+```bash
+git clone https://github.com/Long040405/ros2-nav2-snap.git
+cd ros2-nav2-snap
+```
 
-It can also be installed directly from the store with:
+### 2. Build the Snap (on Ubuntu Host)
+Build the snap package using `snapcraft` inside the repository workspace:
+```bash
+export SNAPCRAFT_ENABLE_EXPERIMENTAL_EXTENSIONS=1
+snapcraft pack --destructive-mode --target-arch=amd64
+```
+This generates the installation package, e.g., `ros2-nav2_1.1.20_amd64.snap`.
 
-`snap install ros2-nav2`
+### 3. Deploy to ctrlX CORE
+Copy and install the built snap on your ctrlX CORE target:
+```bash
+# Copy to the controller
+scp ros2-nav2_1.1.20_amd64.snap rexroot@192.168.1.1:/home/rexroot/
 
-## Use
+# Install the snap
+ssh -t rexroot@192.168.1.1 "sudo snap install --dangerous /home/rexroot/ros2-nav2_1.1.20_amd64.snap"
 
-### Configuration
+# Grant network and DDS permissions
+ssh -t rexroot@192.168.1.1 "sudo snap connect ros2-nav2:network; sudo snap connect ros2-nav2:network-bind"
+```
 
-The ros2-nav2 snap is designed as a general package that offers navigation functionality for robots.
-To ensure maximum flexibility for users, it is intentionally provided without any preset configurations.
+### 4. Run Simulation (on Laptop Host)
+Ensure your laptop has ROS 2 Humble and TurtleBot3 packages installed:
+```bash
+sudo apt update
+sudo apt install -y ros-humble-desktop ros-humble-turtlebot3-gazebo ros-humble-navigation2 ros-humble-nav2-bringup
+```
+Run the simulation script which configures CycloneDDS and launches the Gazebo virtual environment:
+```bash
+./sim.sh
+```
 
-The ros2-nav2 snap must be configured by means of snap parameters.
-The available configuration parameters are listed below:
+### 5. Access the Web UI
+Open your browser and navigate to the ctrlX CORE web dashboard:
+👉 **`http://192.168.1.1/ros2-nav2/`**
 
-- [simulation](https://github.com/canonical/ros2-nav2-snap/blob/main/snap/hooks/install#L10) (string, default: "False")
-- [slam-config](https://github.com/canonical/ros2-nav2-snap/blob/main/snap/hooks/install#L11) (string, default: "")
-- [map-saver-config](https://github.com/canonical/ros2-nav2-snap/blob/main/snap/hooks/install#L16) (string, default: "")
-- [map-yaml-path](https://github.com/canonical/ros2-nav2-snap/blob/main/snap/hooks/install#L15) (string, default: "")
-- [map](https://github.com/canonical/ros2-nav2-snap/blob/main/snap/hooks/install#L14) (string, default="${SNAP_COMMON}/maps/current_map.yaml")
-- [localization-config](https://github.com/canonical/ros2-nav2-snap/blob/main/snap/hooks/install#L13) (string, default: "")
-- [navigation-config](https://github.com/canonical/ros2-nav2-snap/blob/main/snap/hooks/install#L12) (string, default: "")
+From here, you can:
+- **Build Maps**: Turn on **SLAM**, drive the robot with `teleop_keyboard`, and save your map.
+- **Navigate**: Turn on **Navigation**, set the **Initial Pose** using the interactive map, and send **Nav2 Goals** or save **Waypoints**.
 
-The `slam-config`, `localization-config`, and `navigation-config` parameters are essentials for the proper functioning of these applications.
+---
 
-These parameters must be set either to a local configuration file accessible within the SNAP environment (such as `$SNAP_COMMON`), or to a URL hosting the desired configuration.
+## Detailed Service Configuration
+By default, the snap services are managed using snap parameters:
+- `simulation`: Set to `True` when running with a simulated robot (e.g. `sudo snap set ros2-nav2 simulation="True"`).
+- `slam-config`: Path or URL to mapping parameters.
+- `localization-config`: Path or URL to AMCL parameters.
+- `navigation-config`: Path or URL to Nav2 routing parameters.
 
-Additionally, a set of configuration_templates is available at `$SNAP_COMMON/configuration_templates`. Those files are only meant to be a template, they can be modified and used by setting them to the parameters.
-An example of using a template for slam-config is as follows:
-
-`snap set ros2-nav2 slam-config="/var/snap/ros2-nav2/common/configuration_templates/slam_params_template.yaml"`
-
-In case you want to reinitialize the templates, you can simply issue the command `ros2-nav2.reset-config-templates` which will reset all configuration files.
-
-As mentioned, those parameters can also be can also be configured with a URL as follows:
-
-`snap set ros2-nav2 <app-name>-config="https://raw.githubusercontent.com/robot-repo/<app-name>_params.yaml"`
-
-Note: the URL must be reachable by the snap. When using a URL, the configuration file will be downloaded everytime the app is launched. Therefore a configuration update upstream will be applied with the application relaunch.
-
-### SLAM
-
-The SLAM application allows to run the algorithm to map the environment.
-
-Before launching it make sure to configure the `slam-config param` to an appropriate slam configuration yaml file.
-This can either point to one of our templates, to a custom file within $SNAP_COMMON or to a URL as explained in the [Configuration section](#configuration).
-
-Once configured, SLAM can be launched as follows:
-
-`snap start ros2-nav2.slam`
-
-After starting, one can then drive the robot around to create a 2D representation of the environment.
-Once the area is covered, the application can be stopped with:
-
-`snap stop ros2-nav2.slam`
-
-When the application is terminated, the map is automatically saved at `$SNAP_COMMON/maps/current_map.{png,yaml}`.
-
-### Map saver
-
-After stopping the slam application, a map is automatically saved. This is achieved by calling a service to the map saver.
-The map saver runs by default with the parameters provided upstream.
-It can be optionally configured by setting the `map-save-config` parameter to either a local file or to a URL.
-
-The only parameters that can be configured by means of a yaml file are `free_thresh_default` and `occupied_thresh_default`.
-
-### Load map
-
-In alternative to the creation of a map via SLAM, it is also possible to use a pre-existing map.
-
-The map can be optionally loaded by configuring the `map-yaml-path` parameter to either a map placed in `$SNAP_COMMON/maps`, or to a URL that stores the desired map.
-
-An example usage of loading a turtlebot3 map from upstream looks as follows:
-
-`sudo snap set ros2-nav2 map-yaml-path=https://raw.githubusercontent.com/ros-planning/navigation2/main/nav2_bringup/maps/turtlebot3_world.yaml`
-
-When setting this parameter to a URL, the map .yaml file and it's associated image will be downloaded and stored in `$SNAP_COMMON/maps`.
-A soft symlink to the downloaded map will be created, so the map will be used by the localization algorithm.
-Note: the URL must be reachable by the snap. When using a URL, the configuration file will be downloaded everytime the app is launched. Therefore a configuration update upstream will be applied with the application relaunch.
-
-In case SLAM is performed, this parameter will be overwritten and the new generated map used instead.
-
-### Localization
-
-With the environment mapped, one can make use of the autonomous navigation.
-To do so, the localization application has to be started. The localization allows the robot to localize itself in the map provided.
-
-Before launching it make sure to configure the `localization-config param` to an appropriate localization configuration yaml file.
-This can either point to one of our templates, to a custom file within $SNAP_COMMON or to a URL as explained in the [Configuration section](#configuration).
-Once configured, localization can be started as follows:
-
-`snap start ros2-nav2.localization`
-
-Localization will publish the map for the navigation and localize the robot. It can be stopped with:
-
-`snap stop ros2-nav2.localization`
-
-### Navigation
-
-The navigation application allows the robot to autonomously move around to a defined goal while avoiding obstacles.
-
-Before launching it,  make sure to configure the `navigation-config param` to an appropriate navigation configuration yaml file. The snap parameter can either point to one of our templates, to a custom file within $SNAP_COMMON or to a URL as explained in the [Configuration section](#configuration).
-Once configured, navigation can be started and stopped respectively with:
-
-`snap start ros2-nav2.navigation`
-
-`snap stop ros2-nav2.navigation`
+For full configuration templates and instructions, refer to the [ctrlX CORE Tutorial Guide](ctrlx_ros2_nav2_tutorial.md).

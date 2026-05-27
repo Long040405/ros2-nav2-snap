@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.boschrexroth.com/ctrlx-automation/ctrlx-core/apps/package-manifest/package-manifest.v1.1.schema.json",
+  "version": "1.0.0",
+  "id": "ros2-nav2",
+  "services": {
+    "proxyMapping": [
+      {
+        "name": "ros2-nav2-web",
+        "url": "/ros2-nav2",
+        "binding": "unix://{$SNAP_DATA}/package-run/ros2-nav2/web.sock"
+      }
+    ]
+  },
+  "menus": {
+    "sidebar": [
+      {
+        "id": "ros2-nav2-web",
+        "title": "ROS 2 Navigation",
+        "icon": "bosch-ic-worldwideweb",
+        "link": "/ros2-nav2/",
+        "target": "self"
+      }
+    ]
+  }
+}

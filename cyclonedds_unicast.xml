@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CycloneDDS>
+  <Domain>
+    <General>
+      <!-- Chỉ dùng card mạng enp44s0 kết nối với ctrlX CORE (192.168.1.x) -->
+      <Interfaces>
+        <NetworkInterface name="enp44s0" multicast="false"/>
+      </Interfaces>
+    </General>
+    <Discovery>
+      <ParticipantIndex>auto</ParticipantIndex>
+      <MaxAutoParticipantIndex>100</MaxAutoParticipantIndex>
+      <!-- Chỉ định rõ peer là ctrlX CORE và chính laptop -->
+      <Peers>
+        <Peer Address="192.168.1.1"/>
+        <Peer Address="192.168.1.20"/>
+      </Peers>
+    </Discovery>
+  </Domain>
+</CycloneDDS>

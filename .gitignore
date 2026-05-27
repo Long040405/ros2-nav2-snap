@@ -1,1 +1,8 @@
 *.snap
+parts/
+prime/
+stage/
+__pycache__/
+*.gv
+*.pdf
+.DS_Store

@@ -90,6 +90,20 @@ hooks:
   configure:
     plugs: [network]
 
+slots:
+  package-assets:
+    interface: content
+    content: package-assets
+    source:
+      read:
+        - $SNAP/package-assets/ros2-nav2
+  package-run:
+    interface: content
+    content: package-run
+    source:
+      write:
+        - $SNAP_DATA/package-run/ros2-nav2
+
 apps:
   localization:
     command: usr/bin/localization_launcher.sh
@@ -98,6 +112,9 @@ apps:
     install-mode: disable
     plugs: [network, network-bind]
     extensions: [ros2-humble-desktop]
+    environment:
+      RMW_IMPLEMENTATION: rmw_cyclonedds_cpp
+      CYCLONEDDS_URI: $SNAP/usr/share/ros2-nav2/cyclonedds_snap.xml
 
   navigation:
     command: usr/bin/navigation_launcher.sh
@@ -106,6 +123,9 @@ apps:
     install-mode: disable
     plugs: [network, network-bind]
     extensions: [ros2-humble-desktop]
+    environment:
+      RMW_IMPLEMENTATION: rmw_cyclonedds_cpp
+      CYCLONEDDS_URI: $SNAP/usr/share/ros2-nav2/cyclonedds_snap.xml
 
   reset-config-templates:
     command: usr/bin/reset_config.sh
@@ -118,6 +138,22 @@ apps:
     post-stop-command: usr/bin/slam_post_stop.sh
     plugs: [network, network-bind]
     extensions: [ros2-humble-desktop]
+    environment:
+      RMW_IMPLEMENTATION: rmw_cyclonedds_cpp
+      CYCLONEDDS_URI: $SNAP/usr/share/ros2-nav2/cyclonedds_snap.xml
+
+  web-server:
+    command: usr/bin/web_server_launcher.sh
+    daemon: simple
+    install-mode: enable
+    plugs: [network, network-bind]
+    extensions: [ros2-humble-desktop]
+    slots:
+      - package-assets
+      - package-run
+    environment:
+      RMW_IMPLEMENTATION: rmw_cyclonedds_cpp
+      CYCLONEDDS_URI: $SNAP/usr/share/ros2-nav2/cyclonedds_snap.xml
 
 parts:
   ros2-nav2:
@@ -126,6 +162,7 @@ parts:
     stage-packages:
       - wget
       - libssl3
+      - ros-humble-rmw-cyclonedds-cpp
     override-stage: |
       craftctl default
       craftctl set version=$(apt show ros-humble-navigation2 |  awk 'NR==2{print $2}' | cut -d'-' -f1)
@@ -135,8 +172,25 @@ parts:
     source: snap/local/
     organize:
       '*.sh': usr/bin/
+      '*.py': usr/bin/
   configuration-templates:
     plugin: dump
     source: snap/local/configuration_templates/
     organize:
       '*.yaml': usr/share/ros2-nav2/configuration_templates/
+  maps:
+    plugin: dump
+    source: maps/
+    organize:
+      '*': usr/share/ros2-nav2/maps/
+  configs:
+    plugin: dump
+    source: ./configs
+    organize:
+      'package-assets/*': package-assets/ros2-nav2/
+  fastdds-config:
+    plugin: dump
+    source: .
+    organize:
+      'fastdds_disable_shm.xml': usr/share/ros2-nav2/fastdds_disable_shm.xml
+      'cyclonedds_snap.xml': usr/share/ros2-nav2/cyclonedds_snap.xml
