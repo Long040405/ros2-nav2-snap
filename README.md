@@ -56,7 +56,7 @@ Run the simulation script which configures CycloneDDS and launches the Gazebo vi
 
 ### 5. Access the Web UI
 Open your browser and navigate to the ctrlX CORE web dashboard:
-👉 **`http://192.168.1.1/ros2-nav2/`**
+ **`http://192.168.1.1/ros2-nav2/`**
 
 From here, you can:
 - **Build Maps**: Turn on **SLAM**, drive the robot with `teleop_keyboard`, and save your map.
