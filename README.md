@@ -151,7 +151,6 @@ export CYCLONEDDS_URI="./cyclonedds_unicast.xml"
 # Run the teleoperation node
 ros2 run teleop_twist_keyboard teleop_twist_keyboard
 ```
-Use the `u`, `i`, `o`, `j`, `k`, `l`, `m`, `,`, `.` keys on your keyboard to navigate the robot and scan the environment.
 
 ---
 
