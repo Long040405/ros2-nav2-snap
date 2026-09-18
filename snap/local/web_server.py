@@ -475,16 +475,19 @@ HTML_CONTENT = """<!DOCTYPE html>
                 <div class="card-header">
                     <h2 class="card-title"><span class="icon">📂</span> Tải Bản Đồ</h2>
                 </div>
-                <p>Chọn một bản đồ từ danh sách đã lưu để thiết lập làm bản đồ hoạt động hiện tại.</p>
+                <p>Chọn một bản đồ từ danh sách đã lưu để xem trước hoặc nạp làm bản đồ hoạt động hiện tại.</p>
                 <div class="input-group">
                     <div class="select-row">
-                        <select id="map-select">
+                        <select id="map-select" onchange="previewSelectedMap()">
                             <option value="">Đang tải danh sách...</option>
                         </select>
                         <button class="btn-icon" onclick="loadMapList()" title="Làm mới danh sách">
                             <span class="refresh-spinner">↻</span>
                         </button>
                     </div>
+                </div>
+                <div class="btn-group" style="margin-top: 15px;">
+                    <button class="btn-blue" onclick="loadMap()" style="width: 100%;">Nạp Bản Đồ Vào Hệ Thống</button>
                 </div>
             </div>
 
@@ -757,6 +760,13 @@ HTML_CONTENT = """<!DOCTYPE html>
                     opt.innerText = map;
                     select.appendChild(opt);
                 });
+                
+                // Select currently active map or preferred map
+                if (mapInfo && maps.includes(mapInfo.name)) {
+                    select.value = mapInfo.name;
+                } else if (maps.includes('maps_tuesday_1')) {
+                    select.value = 'maps_tuesday_1';
+                }
                 log(`Đã cập nhật danh sách bản đồ (${maps.length} bản đồ được tìm thấy)`);
             } catch (err) {
                 log(`Lỗi tải danh sách bản đồ: ${err.message}`);
@@ -814,6 +824,33 @@ HTML_CONTENT = """<!DOCTYPE html>
                 log(`Lỗi kết nối mạng: ${err.message}`);
             }
             setTimeout(updateStatus, 1500);
+        }
+
+        async function previewSelectedMap() {
+            const select = document.getElementById('map-select');
+            const name = select.value;
+            if (!name) return;
+            try {
+                const res = await fetch('api/map/info?name=' + encodeURIComponent(name));
+                const data = await res.json();
+                if (data.success) {
+                    mapInfo = data;
+                    document.getElementById('map-card').style.display = 'block';
+                    mapImage.src = 'api/map/image?name=' + encodeURIComponent(name) + '&t=' + new Date().getTime();
+                    mapImage.onload = () => {
+                        drawMap();
+                        if (!isRenderLoopStarted) {
+                            isRenderLoopStarted = true;
+                            renderLoop();
+                        }
+                    };
+                    log(`Đã hiển thị xem trước bản đồ: '${name}'`);
+                } else {
+                    log(`Không thể tải thông tin bản đồ: ${data.message || ''}`);
+                }
+            } catch (err) {
+                console.error("Lỗi xem trước bản đồ:", err);
+            }
         }
 
         // Register Canvas Events
@@ -1101,7 +1138,7 @@ HTML_CONTENT = """<!DOCTYPE html>
         loadMapList();
         loadWaypoints();
         initMap();
-        setInterval(updateStatus, 3000);
+        setInterval(updateStatus, 5000);
     </script>
 </body>
 </html>
@@ -1213,6 +1250,48 @@ def parse_map_yaml(yaml_path):
         print(f"Error parsing yaml {yaml_path}: {e}", file=sys.stderr)
     return info
 
+def pgm_to_png_bytes(pgm_path):
+    import zlib, struct
+    with open(pgm_path, "rb") as f:
+        magic = f.readline().strip()
+        if magic != b"P5":
+            raise ValueError("Only binary P5 PGM is supported")
+        def next_token():
+            tok = b""
+            while not tok:
+                line = f.readline()
+                if not line: return None
+                line = line.split(b"#")[0].strip()
+                if line:
+                    tok = line.split()
+            return tok
+        tokens = []
+        while len(tokens) < 3:
+            t = next_token()
+            if not t: break
+            tokens.extend(t)
+        width, height, maxval = int(tokens[0]), int(tokens[1]), int(tokens[2])
+        raw_data = f.read()
+
+    if maxval != 255:
+        raw_data = bytes(int(b * 255 / maxval) for b in raw_data)
+
+    raw_lines = bytearray()
+    for y in range(height):
+        raw_lines.append(0)  # Filter type 0 (None)
+        raw_lines.extend(raw_data[y * width : (y + 1) * width])
+
+    def make_chunk(chunk_type, data):
+        return struct.pack(">I", len(data)) + chunk_type + data + struct.pack(">I", zlib.crc32(chunk_type + data) & 0xffffffff)
+
+    header = b"\x89PNG\r\n\x1a\n"
+    ihdr = struct.pack(">IIBBBBB", width, height, 8, 0, 0, 0, 0)
+    ihdr_chunk = make_chunk(b"IHDR", ihdr)
+    compressed_data = zlib.compress(bytes(raw_lines))
+    idat_chunk = make_chunk(b"IDAT", compressed_data)
+    iend_chunk = make_chunk(b"IEND", b"")
+    return header + ihdr_chunk + idat_chunk + iend_chunk
+
 class UnixHTTPServer(HTTPServer):
     def server_bind(self):
         self.socket = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
@@ -1314,6 +1393,16 @@ class DashboardRequestHandler(BaseHTTPRequestHandler):
                 yaml_path = os.path.join(maps_dir, f"{map_name}.yaml")
             else:
                 yaml_path = os.path.join(maps_dir, 'current_map.yaml')
+                if os.path.islink(yaml_path):
+                    try:
+                        target = os.readlink(yaml_path)
+                        base = os.path.basename(target)
+                        if base.endswith('.yaml'):
+                            map_name = base[:-5]
+                    except Exception:
+                        pass
+                if not map_name:
+                    map_name = "current_map"
                 
             map_info = parse_map_yaml(yaml_path)
             if not map_info:
@@ -1331,7 +1420,7 @@ class DashboardRequestHandler(BaseHTTPRequestHandler):
                 
                 response_data = {
                     "success": True,
-                    "name": map_name or "current_map",
+                    "name": map_name,
                     "resolution": resolution,
                     "origin_x": origin_parts[0],
                     "origin_y": origin_parts[1],
@@ -1368,17 +1457,43 @@ class DashboardRequestHandler(BaseHTTPRequestHandler):
                 self.send_error(404, f"Map image file {map_info['image']} not found")
                 return
                 
-            self.send_response(200)
-            if image_path.endswith('.png'):
-                self.send_header('Content-type', 'image/png')
-            elif image_path.endswith('.pgm'):
-                self.send_header('Content-type', 'image/x-portable-graymap')
+            # If image is PGM or doesn't exist directly, check for PNG counterpart or convert on-the-fly
+            png_counterpart = os.path.splitext(image_path)[0] + '.png'
+            if image_path.endswith('.pgm'):
+                if os.path.exists(png_counterpart):
+                    image_path = png_counterpart
+                    content_type = 'image/png'
+                    with open(image_path, 'rb') as f:
+                        img_data = f.read()
+                else:
+                    try:
+                        img_data = pgm_to_png_bytes(image_path)
+                        content_type = 'image/png'
+                        # Cache the PNG file alongside the PGM
+                        try:
+                            with open(png_counterpart, 'wb') as f_out:
+                                f_out.write(img_data)
+                        except Exception:
+                            pass
+                    except Exception as e:
+                        print(f"Error converting PGM to PNG: {e}", file=sys.stderr)
+                        with open(image_path, 'rb') as f:
+                            img_data = f.read()
+                        content_type = 'image/x-portable-graymap'
+            elif image_path.endswith('.png'):
+                content_type = 'image/png'
+                with open(image_path, 'rb') as f:
+                    img_data = f.read()
             else:
-                self.send_header('Content-type', 'application/octet-stream')
+                content_type = 'application/octet-stream'
+                with open(image_path, 'rb') as f:
+                    img_data = f.read()
+                
+            self.send_response(200)
+            self.send_header('Content-type', content_type)
+            self.send_header('Content-Length', str(len(img_data)))
             self.end_headers()
-            
-            with open(image_path, 'rb') as f:
-                self.wfile.write(f.read())
+            self.wfile.write(img_data)
             return
 
         elif self.path == '/':

@@ -4,12 +4,12 @@ amcl:
 
     global_frame_id: map
     odom_frame_id: odom
-    base_frame_id: base_link
+    base_frame_id: base_footprint
 
     scan_topic: scan
 
-    # Humble
-    robot_model_type: nav2_amcl::OmniMotionModel
+    # Humble Differential Drive
+    robot_model_type: nav2_amcl::DifferentialMotionModel
 
     set_initial_pose: True
     always_reset_initial_pose: True

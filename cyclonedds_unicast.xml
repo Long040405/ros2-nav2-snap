@@ -2,17 +2,19 @@
 <CycloneDDS>
   <Domain>
     <General>
-      <!-- Dùng card mạng wlo1 (WiFi) kết nối với ctrlX CORE -->
+      <!-- Chọn card mạng kết nối với ctrlX CORE (enp44s0 mạng dây hoặc wlo1 wifi) -->
       <Interfaces>
-        <NetworkInterface name="wlo1" multicast="false"/>
+        <NetworkInterface name="enp44s0" multicast="false"/>
       </Interfaces>
     </General>
     <Discovery>
       <ParticipantIndex>auto</ParticipantIndex>
       <MaxAutoParticipantIndex>100</MaxAutoParticipantIndex>
       <Peers>
-        <Peer Address="192.168.1.1"/>
-        <Peer Address="192.168.2.67"/>
+        <Peer Address="192.168.1.1"/>      <!-- ctrlX CORE IP -->
+        <Peer Address="192.168.1.20"/>     <!-- Laptop LAN IP (Primary) -->
+        <Peer Address="192.168.1.10"/>     <!-- Laptop LAN IP (Secondary) -->
+        <Peer Address="127.0.0.1"/>        <!-- Localhost cho các node nội bộ -->
       </Peers>
     </Discovery>
   </Domain>

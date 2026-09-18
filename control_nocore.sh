@@ -1,10 +1,14 @@
 #!/usr/bin/bash
-# Thiết lập các biến môi trường cần thiết
+# ==============================================================================
+# Điều khiển robot bằng bàn phím (Teleop) ở chế độ cục bộ (không cần ctrlX CORE)
+# ==============================================================================
+
 export TURTLEBOT3_MODEL=waffle
-# Sử dụng CycloneDDS cấu hình unicast khớp hoàn toàn với ctrlX CORE
-export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
-export CYCLONEDDS_URI="file://$(dirname "$(readlink -f "$0")")/cyclonedds_unicast.xml"
 export ROS_DOMAIN_ID=0
+
+# Xóa cấu hình CycloneDDS unicast
+unset CYCLONEDDS_URI
+unset RMW_IMPLEMENTATION
 
 # Source môi trường ROS 2 Humble trên máy host
 if [ -f "/opt/ros/humble/setup.bash" ]; then
@@ -15,7 +19,7 @@ else
 fi
 
 echo "========================================================="
-echo "   Bắt đầu điều khiển robot bằng bàn phím (Teleop)       "
+echo "   Bắt đầu điều khiển robot bằng bàn phím (Teleop Local) "
 echo "   Lưu ý: Nhấp chuột chọn Terminal này để điều khiển!    "
 echo "========================================================="
 ros2 run turtlebot3_teleop teleop_keyboard

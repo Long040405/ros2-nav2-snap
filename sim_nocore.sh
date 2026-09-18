@@ -1,16 +1,22 @@
 #!/usr/bin/bash
+# ==============================================================================
+# Script khởi chạy mô phỏng Gazebo và RViz2 hoàn toàn cục bộ trên Laptop
+# Không cần kết nối mạng dây, không cần ctrlX CORE
+# ==============================================================================
+
 # Thiết lập các biến môi trường cần thiết
 export TURTLEBOT3_MODEL=waffle
 export QT_QPA_PLATFORM=xcb
 export GAZEBO_MODEL_PATH=$GAZEBO_MODEL_PATH:/opt/ros/humble/share/turtlebot3_gazebo/models
+export ROS_DOMAIN_ID=0
+
+# Xóa cấu hình CycloneDDS unicast trỏ tới ctrlX CORE
+# ROS 2 sẽ tự động dùng DDS mặc định (SHM / Localhost) để các node tự kết nối
+unset CYCLONEDDS_URI
+unset RMW_IMPLEMENTATION
 
 # Thư mục chứa script này
 SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
-
-# Sử dụng CycloneDDS cấu hình unicast khớp hoàn toàn với ctrlX CORE
-export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
-export CYCLONEDDS_URI="file://${SCRIPT_DIR}/cyclonedds_unicast.xml"
-export ROS_DOMAIN_ID=0
 
 # Source môi trường ROS 2 Humble trên máy host
 if [ -f "/opt/ros/humble/setup.bash" ]; then
@@ -20,11 +26,11 @@ else
     exit 1
 fi
 
-# Kiểm tra CycloneDDS đã cài chưa
-if ! ros2 pkg list 2>/dev/null | grep -q "rmw_cyclonedds_cpp"; then
-    echo "----> Đang cài đặt CycloneDDS..."
-    sudo apt install -y ros-humble-rmw-cyclonedds-cpp
-fi
+echo "========================================================="
+echo "   Khởi chạy Giả lập Cục bộ (Chế độ Không cần ctrlX CORE)"
+echo "   DDS: Mặc định (Localhost / SHM / Tự do giao tiếp)"
+echo "   Domain ID: ${ROS_DOMAIN_ID}"
+echo "========================================================="
 
 # 1. Chạy Gazebo giả lập trong nền (background)
 echo "----> Đang khởi chạy mô phỏng Gazebo (TurtleBot3 World)..."
@@ -56,4 +62,3 @@ if [ ! -f "${RVIZ_CONFIG}" ]; then
 fi
 
 rviz2 -d "${RVIZ_CONFIG}" --ros-args -p use_sim_time:=true
-
